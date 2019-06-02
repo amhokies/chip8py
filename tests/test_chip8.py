@@ -71,7 +71,7 @@ class Chip8TestSuite(unittest.TestCase):
 
         # Skip next instruction if register VB != 0x69
         c.memory[512:514] = [0x4B, 0x69]
-        c.v_registers[11] = 0x70
+        c.v_registers[0xB] = 0x70
 
         c.cycle()
 
@@ -82,7 +82,7 @@ class Chip8TestSuite(unittest.TestCase):
 
         # Skip next instruction if register VB != 0x69
         c.memory[512:514] = [0x4B, 0x69]
-        c.v_registers[11] = 0x69
+        c.v_registers[0xB] = 0x69
 
         c.cycle()
 
@@ -94,7 +94,7 @@ class Chip8TestSuite(unittest.TestCase):
         # Skip next instruction if register V4 == register VA
         c.memory[512:514] = [0x54, 0xA0]
         c.v_registers[4] = 0x09
-        c.v_registers[10] = 0x09
+        c.v_registers[0xA] = 0x09
 
         c.cycle()
 
@@ -106,7 +106,7 @@ class Chip8TestSuite(unittest.TestCase):
         # Skip next instruction if register V4 == register VA
         c.memory[512:514] = [0x54, 0xA0]
         c.v_registers[4] = 0x09
-        c.v_registers[10] = 0x05
+        c.v_registers[0xA] = 0x05
 
         c.cycle()
 
@@ -127,11 +127,23 @@ class Chip8TestSuite(unittest.TestCase):
 
         # Add 0x05 to register VE
         c.memory[512:514] = [0x7E, 0x05]
-        c.v_registers[14] = 0x45
+        c.v_registers[0xE] = 0x45
 
         c.cycle()
 
-        self.assertEqual(0x4A, c.v_registers[14])
+        self.assertEqual(0x4A, c.v_registers[0xE])
+
+    def test_7xkk_overflow(self):
+        c = chip8.Chip8()
+
+        # Add 0x05 to register VE
+        c.memory[512:514] = [0x7E, 0xAB]
+        c.v_registers[0xE] = 0x80
+
+        c.cycle()
+
+        # 0xAB + 0x80 = 0x012B
+        self.assertEqual(0x2B, c.v_registers[0xE])
 
     def test_8xy0(self):
         c = chip8.Chip8()
@@ -168,7 +180,7 @@ class Chip8TestSuite(unittest.TestCase):
 
         self.assertEqual(2, c.v_registers[0])
 
-    def text_8xy3(self):
+    def test_8xy3(self):
         c = chip8.Chip8()
 
         # XOR V0 and V1, store in V0
@@ -180,17 +192,150 @@ class Chip8TestSuite(unittest.TestCase):
 
         self.assertEqual(49, c.v_registers[0])
 
-    def test_8xy4(self):
-        pass
+    def test_8xy4_carry(self):
+        c = chip8.Chip8()
 
-    def text_8xy5(self):
-        pass
+        # ADD V0 and V1, set carry
+        c.memory[512:514] = [0x80, 0x14]
+        c.v_registers[0] = 0xFF
+        c.v_registers[1] = 0x50
 
-    def text_8xy6(self):
-        pass
+        c.cycle()
 
-    def text_8xy7(self):
-        pass
+        self.assertEqual(0x4F, c.v_registers[0])
+        self.assertEqual(0x01, c.v_registers[0xF])
+
+    def test_8xy4_no_carry(self):
+        c = chip8.Chip8()
+
+        # ADD V0 and V1, don't set carry
+        c.memory[512:514] = [0x80, 0x14]
+        c.v_registers[0] = 0x30
+        c.v_registers[1] = 0x45
+
+        # Set the VF register to make sure it gets unset
+        c.v_registers[0xF] = 0x01
+
+        c.cycle()
+
+        self.assertEqual(0x75, c.v_registers[0])
+        self.assertEqual(0x00, c.v_registers[0xF])
+
+    def test_8xy5_borrow(self):
+        c = chip8.Chip8()
+
+        # SUB V1 from V0, borrow
+        c.memory[512:514] = [0x80, 0x15]
+        c.v_registers[0] = 0x30
+        c.v_registers[1] = 0x45
+
+        # Set the VF register to make sure it gets unset
+        c.v_registers[0xF] = 0x01
+
+        c.cycle()
+
+        self.assertEqual(235, c.v_registers[0])
+        self.assertEqual(0x00, c.v_registers[0xF])
+
+    def test_8xy5_no_borrow(self):
+        c = chip8.Chip8()
+
+        # SUB V1 from V0, don't borrow
+        c.memory[512:514] = [0x80, 0x15]
+        c.v_registers[0] = 0x45
+        c.v_registers[1] = 0x30
+
+        c.cycle()
+
+        self.assertEqual(0x15, c.v_registers[0])
+        self.assertEqual(0x01, c.v_registers[0xF])
+
+    def test_8xy6_odd(self):
+        c = chip8.Chip8()
+
+        # Bitshift V0 right by 1, set VF
+        c.memory[512:514] = [0x80, 0x16]
+        c.v_registers[0] = 0x8F
+
+        c.cycle()
+
+        self.assertEqual(71, c.v_registers[0])
+        self.assertEqual(0x01, c.v_registers[0xF])
+
+    def test_8xy6_even(self):
+        c = chip8.Chip8()
+
+        # Bitshift V0 right by 1, clear VF
+        c.memory[512:514] = [0x80, 0x16]
+        c.v_registers[0] = 0x8e
+
+        c.v_registers[0xF] = 0x01
+
+        c.cycle()
+
+        self.assertEqual(71, c.v_registers[0])
+        self.assertEqual(0x00, c.v_registers[0xF])
+
+    def test_8xy7_borrow(self):
+        c = chip8.Chip8()
+
+        # SUB V0 from V1, borrow
+        c.memory[512:514] = [0x80, 0x17]
+        c.v_registers[0] = 0x8A
+        c.v_registers[1] = 0x1F
+
+        # Set the VF register to make sure it gets unset
+        c.v_registers[0xF] = 0x01
+
+        c.cycle()
+
+        self.assertEqual(149, c.v_registers[0])
+        self.assertEqual(0x00, c.v_registers[0xF])
+
+    def test_8xy7_no_borrow(self):
+        c = chip8.Chip8()
+
+        # SUB V0 from V1, don't borrow
+        c.memory[512:514] = [0x80, 0x17]
+        c.v_registers[0] = 0x1F
+        c.v_registers[1] = 0x8A
+
+        c.cycle()
+
+        self.assertEqual(107, c.v_registers[0])
+        self.assertEqual(0x01, c.v_registers[0xF])
+
+    def test_8xyE_msb_0(self):
+        c = chip8.Chip8()
+
+        # Bitshift V0 left by 1, clear VF
+        c.memory[512:514] = [0x80, 0x1E]
+
+        # V0 = 0101 0001
+        c.v_registers[0] = 81
+
+        c.v_registers[0xF] = 0x01
+
+        c.cycle()
+
+        # V0 == 1010 0010
+        self.assertEqual(162, c.v_registers[0])
+        self.assertEqual(0x00, c.v_registers[0xF])
+
+    def test_8xyE_msb_1(self):
+        c = chip8.Chip8()
+
+        # Bitshift V0 left by 1, set VF
+        c.memory[512:514] = [0x80, 0x1E]
+
+        # V0 = 1101 0001
+        c.v_registers[0] = 209
+
+        c.cycle()
+
+        # V0 == 1010 0010
+        self.assertEqual(162, c.v_registers[0])
+        self.assertEqual(0x01, c.v_registers[0xF])
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 """
 Chip 8 interpreter module
 """
-
+import ctypes
 
 class Chip8:
     """
@@ -155,7 +155,7 @@ class Chip8:
         x = (opcode & 0x0F00) >> 8
         kk = opcode & 0x00FF
 
-        self.v_registers[x] += kk
+        self.v_registers[x] = ctypes.c_ubyte(self.v_registers[x] + kk).value
 
     def execute_8000(self, opcode):
         """
@@ -175,14 +175,44 @@ class Chip8:
         x = (opcode & 0x0F00) >> 8
         y = (opcode & 0x00F0) >> 4
 
-        if lsn == 0:
+        if lsn == 0x0:
             self.v_registers[x] = self.v_registers[y]
-        elif lsn == 1:
+        elif lsn == 0x1:
             self.v_registers[x] |= self.v_registers[y]
-        elif lsn == 2:
+        elif lsn == 0x2:
             self.v_registers[x] &= self.v_registers[y]
-        elif lsn == 3:
+        elif lsn == 0x3:
             self.v_registers[x] ^= self.v_registers[y]
+        elif lsn == 0x4:
+            res = self.v_registers[x] + self.v_registers[y]
+
+            self.v_registers[0xF] = 1 if res > 255 else 0
+            self.v_registers[x] = ctypes.c_ubyte(res).value
+        elif lsn == 0x5:
+            x_val = self.v_registers[x]
+            y_val = self.v_registers[y]
+
+            self.v_registers[0xF] = 1 if x_val > y_val else 0
+            self.v_registers[x] = ctypes.c_ubyte(x_val - y_val).value
+        elif lsn == 0x6:
+            x_val = self.v_registers[x]
+
+            # If the least significant bit of Vx is 1,
+            # set VF to 1, otherwise set VF to 0
+            self.v_registers[0xF] = x_val & 1
+
+            self.v_registers[x] = ctypes.c_ubyte(x_val >> 1).value
+        elif lsn == 0x7:
+            x_val = self.v_registers[x]
+            y_val = self.v_registers[y]
+
+            self.v_registers[0xF] = 1 if y_val > x_val else 0
+            self.v_registers[x] = ctypes.c_ubyte(y_val - x_val).value
+        elif lsn == 0xE:
+            x_val = self.v_registers[x]
+
+            self.v_registers[0xF] = (x_val & 0x80) >> 7
+            self.v_registers[x] = ctypes.c_ubyte(x_val << 1).value
 
     def execute_9000(self, opcode):
         print('0x9000: {:x}'.format(opcode))
