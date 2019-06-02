@@ -28,7 +28,7 @@ class Chip8:
         self.pc = 0x0200
 
         # 8-bit stack pointer
-        self.sp = 0
+        self.sp = -2
 
         # 16 16-bit values to store return addresses
         self.stack = bytearray(32)
@@ -138,13 +138,51 @@ class Chip8:
             self.incr_pc()
 
     def execute_6000(self, opcode):
-        print('0x6000: {:x}'.format(opcode))
+        """
+        6xkk - LD Vx, byte
+            Set Vx = kk
+        """
+        x = (opcode & 0x0F00) >> 8
+        kk = opcode & 0x00FF
+
+        self.v_registers[x] = kk
 
     def execute_7000(self, opcode):
-        print('0x7000: {:x}'.format(opcode))
+        """
+        7xkk - ADD Vx, byte
+            Adds the value kk to the value in register Vx
+        """
+        x = (opcode & 0x0F00) >> 8
+        kk = opcode & 0x00FF
+
+        self.v_registers[x] += kk
 
     def execute_8000(self, opcode):
-        print('0x8000: {:x}'.format(opcode))
+        """
+        8xy0 - LD Vx, Vy
+            Stores the value of register Vy in register Vx
+        8xy1 - OR Vx, Vy
+            Bitwise OR Vx and Vy, store result in Vx
+        8xy2 - AND Vx, Vy
+            Bitwise AND Vx and Vy, store result in Vx
+        8xy3 - XOR Vx, Vy
+            Bitwise XOR Vx and Vy, store result in Vx
+        """
+
+        # Least significant nibble
+        lsn = opcode & 0x000F
+
+        x = (opcode & 0x0F00) >> 8
+        y = (opcode & 0x00F0) >> 4
+
+        if lsn == 0:
+            self.v_registers[x] = self.v_registers[y]
+        elif lsn == 1:
+            self.v_registers[x] |= self.v_registers[y]
+        elif lsn == 2:
+            self.v_registers[x] &= self.v_registers[y]
+        elif lsn == 3:
+            self.v_registers[x] ^= self.v_registers[y]
 
     def execute_9000(self, opcode):
         print('0x9000: {:x}'.format(opcode))
