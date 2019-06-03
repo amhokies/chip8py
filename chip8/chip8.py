@@ -3,6 +3,9 @@ Chip 8 interpreter module
 """
 import ctypes
 
+from random import randint
+
+
 class Chip8:
     """
     Chip 8 interpreter class
@@ -131,11 +134,14 @@ class Chip8:
         5xy0 - SE Vx, Vy
             Skip next instruction if Vx = Vy
         """
+        lsn = opcode & 0x000F
+
         x = (opcode & 0x0F00) >> 8
         y = (opcode & 0x00F0) >> 4
 
-        if self.v_registers[x] == self.v_registers[y]:
-            self.incr_pc()
+        if lsn == 0x0:
+            if self.v_registers[x] == self.v_registers[y]:
+                self.incr_pc()
 
     def execute_6000(self, opcode):
         """
@@ -167,6 +173,16 @@ class Chip8:
             Bitwise AND Vx and Vy, store result in Vx
         8xy3 - XOR Vx, Vy
             Bitwise XOR Vx and Vy, store result in Vx
+        8xy4 - ADD Vx, Vy
+            Set Vx = Vx + Vy, set VF = carry
+        8xy5 - SUB Vx, Vy
+            Set Vx = Vx - Vy, set VF = NOT borrow
+        8xy6 - SHR Vx
+            Set Vx = Vx >> 1
+        8xy7 - SUBN Vx, Vy
+            Set Vx = Vy - Yx, set VF = NOT borrow
+        8xyE - SHL Vx
+            Set Vx = Vx << 1
         """
 
         # Least significant nibble
@@ -215,16 +231,42 @@ class Chip8:
             self.v_registers[x] = ctypes.c_ubyte(x_val << 1).value
 
     def execute_9000(self, opcode):
-        print('0x9000: {:x}'.format(opcode))
+        """
+        9xy0 - SNE Vx, Vy
+            Skip next instruction if Vx != Vy
+        """
+        lsn = opcode & 0x000F
+
+        x = (opcode & 0x0F00) >> 8
+        y = (opcode & 0x00F0) >> 4
+
+        if lsn == 0x0:
+            if self.v_registers[x] != self.v_registers[y]:
+                self.incr_pc()
 
     def execute_A000(self, opcode):
-        print('0xA000: {:x}'.format(opcode))
+        """
+        Annn - LD I, addr
+            Set I = nnn
+        """
+        self.i_register = opcode & 0x0FFF
 
     def execute_B000(self, opcode):
-        print('0xB000: {:x}'.format(opcode))
+        """
+        Bnnn - JP V0, addr
+            Jump to location nnn + V0
+        """
+        self.pc = (opcode & 0x0FFF) + self.v_registers[0]
 
     def execute_C000(self, opcode):
-        print('0xC000: {:x}'.format(opcode))
+        """
+        Cxkk - RND Vx, byte
+            Set Vx = random byte AND kk
+        """
+        x = (opcode & 0x0F00) >> 8
+        kk = opcode & 0x00FF
+
+        self.v_registers[x] = randint(0, 0xFF) & kk
 
     def execute_D000(self, opcode):
         print('0xD000: {:x}'.format(opcode))

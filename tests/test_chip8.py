@@ -1,3 +1,4 @@
+import random
 import unittest
 
 from context import chip8
@@ -336,6 +337,63 @@ class Chip8TestSuite(unittest.TestCase):
         # V0 == 1010 0010
         self.assertEqual(162, c.v_registers[0])
         self.assertEqual(0x01, c.v_registers[0xF])
+
+    def test_9xy0_pass(self):
+        c = chip8.Chip8()
+
+        # Skip next instruction if register V4 != register VA
+        c.memory[512:514] = [0x94, 0xA0]
+        c.v_registers[4] = 0x09
+        c.v_registers[0xA] = 0x05
+
+        c.cycle()
+
+        self.assertEqual(516, c.pc)
+
+    def test_9xy0_fail(self):
+        c = chip8.Chip8()
+
+        # Skip next instruction if register V4 != register VA
+        c.memory[512:514] = [0x94, 0xA0]
+        c.v_registers[4] = 0x09
+        c.v_registers[0xA] = 0x09
+
+        c.cycle()
+
+        self.assertEqual(514, c.pc)
+
+    def test_Annn(self):
+        c = chip8.Chip8()
+
+        # Load 0xabc into register I
+        c.memory[512:514] = [0xAA, 0xBC]
+
+        c.cycle()
+
+        self.assertEqual(0xABC, c.i_register)
+
+    def test_Bnnn(self):
+        c = chip8.Chip8()
+
+        # Load 0xabc into register I
+        c.memory[512:514] = [0xBA, 0xBC]
+        c.v_registers[0] = 0x34
+
+        c.cycle()
+
+        self.assertEqual(0xAF0, c.pc)
+
+    def test_Cxkk(self):
+        c = chip8.Chip8()
+
+        # Load 0xabc into register I
+        c.memory[512:514] = [0xC8, 0x13]
+
+        random.seed(1337)
+
+        c.cycle()
+
+        self.assertEqual(19, c.v_registers[8])
 
 
 if __name__ == '__main__':
